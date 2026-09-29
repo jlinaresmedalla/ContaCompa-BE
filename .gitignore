@@ -1,0 +1,33 @@
+# python / uv
+.venv/
+__pycache__/
+*.pyc
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+dist/
+
+# secrets and local config
+.env
+CLAUDE.local.md
+
+# local data
+data/local/
+
+# os / editors
+.DS_Store
+.idea/
+.vscode/
+
+# generated diagrams (archify)
+*.archify.json
+architecture*.html
+
+# claude / ai assistant local scratch
+.claude/
+.superpowers/
+CLAUDE.md
+
+
+# glossary, ADRs, specs, tickets and design docs (local-only per project decision, ADR 0011)
+docs/

@@ -1,0 +1,71 @@
+name: doc-extraction
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: doc_extraction
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d doc_extraction"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    build: .
+    command: alembic upgrade head
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+asyncpg://app:app@db:5432/doc_extraction
+      API_KEY: ${API_KEY:-change-me}
+      BLOB_DIR: /data/blobs
+    restart: "no"
+    depends_on:
+      db: { condition: service_healthy }
+
+  api:
+    build: .
+    command: uvicorn contacompa.entrypoints.api.app:create_app --factory --host 0.0.0.0 --port 8000 --workers 2
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+asyncpg://app:app@db:5432/doc_extraction
+      BLOB_DIR: /data/blobs
+      API_KEY: ${API_KEY:-change-me}
+    ports: ["8000:8000"]
+    volumes: [blobs:/data/blobs]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/healthz').status==200 else 1)"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+    depends_on:
+      db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+
+  worker:
+    build: .
+    command: python -m contacompa.entrypoints.worker
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+asyncpg://app:app@db:5432/doc_extraction
+      BLOB_DIR: /data/blobs
+      API_KEY: ${API_KEY:-change-me}
+      WORKER_CONCURRENCY: "2"
+    volumes: [blobs:/data/blobs]
+    depends_on:
+      db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+
+volumes:
+  pgdata:
+  blobs:

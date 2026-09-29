@@ -1,0 +1,284 @@
+interactions:
+- request:
+    body: '{"contents": [{"parts": [{"text": "Document type declared by the caller:
+      invoice.\n\nExtract the invoice fields: vendor name, vendor tax id, invoice
+      number, issue date, due date, currency, subtotal, tax amount, total, and every
+      line item (description, quantity, unit price, amount).\n\nDocument text (or
+      attached PDF):\nFACTURA ELECTRONICA F001-000123\nVendor: Acme Tools S.A.C.\nRUC:
+      20123456789\nFecha de emision: 15/03/2026\nItem: Taladro industrial  x1  1.045,00\nMoneda:
+      PEN\nSubtotal: 1.045,00\nIGV 18%: 189,56\nTOTAL: 1.234,56"}], "role": "user"}],
+      "systemInstruction": {"parts": [{"text": "You extract structured data from business
+      documents for an accounts-payable system. You are precise and you never invent
+      values.\n\nRules:\n- Return only the JSON object described by the schema.\n-
+      For every field, copy the value exactly as written in the document (do not convert
+      formats), set a confidence between 0 and 1, and give the page number and the
+      exact quote where you read it.\n- If a value is not present in the document,
+      set its value to null, confidence to 0, and source to null. Never guess.\n-
+      Detect what kind of document this actually is (invoice, purchase_order, receipt
+      or other) and report it in detected_type, even if it differs from what you were
+      told.\n- Documents may be in English or Spanish. Amounts may use \"1.234,56\"
+      or \"1,234.56\" formats \u2014 copy them verbatim.\n- The total is usually on
+      the last page of multi-page documents."}], "role": "user"}, "generationConfig":
+      {"temperature": 0.0, "responseMimeType": "application/json", "responseSchema":
+      {"properties": {"detected_type": {"description": "What the document actually
+      is: invoice, purchase_order, receipt or other", "title": "Detected Type", "type":
+      "STRING"}, "vendor_name": {"description": "One extracted value as the model
+      reports it. Values are strings; normalization is applied\nafterwards according
+      to the schema''s FieldKind.", "properties": {"value": {"description": "Verbatim
+      value, or null if not found", "nullable": true, "title": "Value", "type": "STRING"},
+      "confidence": {"description": "Model''s confidence that the value is right",
+      "maximum": 1.0, "minimum": 0.0, "title": "Confidence", "type": "NUMBER"}, "source":
+      {"nullable": true, "properties": {"page": {"description": "1-based page number
+      where the value was read", "minimum": 1.0, "title": "Page", "type": "INTEGER"},
+      "quote": {"description": "Exact text as it appears on the page", "nullable":
+      true, "title": "Quote", "type": "STRING"}}, "property_ordering": ["page", "quote"],
+      "required": ["page"], "title": "Source", "type": "OBJECT"}}, "property_ordering":
+      ["value", "confidence", "source"], "required": ["confidence"], "title": "ExtractedField",
+      "type": "OBJECT"}, "vendor_tax_id": {"description": "One extracted value as
+      the model reports it. Values are strings; normalization is applied\nafterwards
+      according to the schema''s FieldKind.", "properties": {"value": {"description":
+      "Verbatim value, or null if not found", "nullable": true, "title": "Value",
+      "type": "STRING"}, "confidence": {"description": "Model''s confidence that the
+      value is right", "maximum": 1.0, "minimum": 0.0, "title": "Confidence", "type":
+      "NUMBER"}, "source": {"nullable": true, "properties": {"page": {"description":
+      "1-based page number where the value was read", "minimum": 1.0, "title": "Page",
+      "type": "INTEGER"}, "quote": {"description": "Exact text as it appears on the
+      page", "nullable": true, "title": "Quote", "type": "STRING"}}, "property_ordering":
+      ["page", "quote"], "required": ["page"], "title": "Source", "type": "OBJECT"}},
+      "property_ordering": ["value", "confidence", "source"], "required": ["confidence"],
+      "title": "ExtractedField", "type": "OBJECT"}, "invoice_number": {"description":
+      "One extracted value as the model reports it. Values are strings; normalization
+      is applied\nafterwards according to the schema''s FieldKind.", "properties":
+      {"value": {"description": "Verbatim value, or null if not found", "nullable":
+      true, "title": "Value", "type": "STRING"}, "confidence": {"description": "Model''s
+      confidence that the value is right", "maximum": 1.0, "minimum": 0.0, "title":
+      "Confidence", "type": "NUMBER"}, "source": {"nullable": true, "properties":
+      {"page": {"description": "1-based page number where the value was read", "minimum":
+      1.0, "title": "Page", "type": "INTEGER"}, "quote": {"description": "Exact text
+      as it appears on the page", "nullable": true, "title": "Quote", "type": "STRING"}},
+      "property_ordering": ["page", "quote"], "required": ["page"], "title": "Source",
+      "type": "OBJECT"}}, "property_ordering": ["value", "confidence", "source"],
+      "required": ["confidence"], "title": "ExtractedField", "type": "OBJECT"}, "issue_date":
+      {"description": "One extracted value as the model reports it. Values are strings;
+      normalization is applied\nafterwards according to the schema''s FieldKind.",
+      "properties": {"value": {"description": "Verbatim value, or null if not found",
+      "nullable": true, "title": "Value", "type": "STRING"}, "confidence": {"description":
+      "Model''s confidence that the value is right", "maximum": 1.0, "minimum": 0.0,
+      "title": "Confidence", "type": "NUMBER"}, "source": {"nullable": true, "properties":
+      {"page": {"description": "1-based page number where the value was read", "minimum":
+      1.0, "title": "Page", "type": "INTEGER"}, "quote": {"description": "Exact text
+      as it appears on the page", "nullable": true, "title": "Quote", "type": "STRING"}},
+      "property_ordering": ["page", "quote"], "required": ["page"], "title": "Source",
+      "type": "OBJECT"}}, "property_ordering": ["value", "confidence", "source"],
+      "required": ["confidence"], "title": "ExtractedField", "type": "OBJECT"}, "due_date":
+      {"description": "One extracted value as the model reports it. Values are strings;
+      normalization is applied\nafterwards according to the schema''s FieldKind.",
+      "properties": {"value": {"description": "Verbatim value, or null if not found",
+      "nullable": true, "title": "Value", "type": "STRING"}, "confidence": {"description":
+      "Model''s confidence that the value is right", "maximum": 1.0, "minimum": 0.0,
+      "title": "Confidence", "type": "NUMBER"}, "source": {"nullable": true, "properties":
+      {"page": {"description": "1-based page number where the value was read", "minimum":
+      1.0, "title": "Page", "type": "INTEGER"}, "quote": {"description": "Exact text
+      as it appears on the page", "nullable": true, "title": "Quote", "type": "STRING"}},
+      "property_ordering": ["page", "quote"], "required": ["page"], "title": "Source",
+      "type": "OBJECT"}}, "property_ordering": ["value", "confidence", "source"],
+      "required": ["confidence"], "title": "ExtractedField", "type": "OBJECT"}, "currency":
+      {"description": "One extracted value as the model reports it. Values are strings;
+      normalization is applied\nafterwards according to the schema''s FieldKind.",
+      "properties": {"value": {"description": "Verbatim value, or null if not found",
+      "nullable": true, "title": "Value", "type": "STRING"}, "confidence": {"description":
+      "Model''s confidence that the value is right", "maximum": 1.0, "minimum": 0.0,
+      "title": "Confidence", "type": "NUMBER"}, "source": {"nullable": true, "properties":
+      {"page": {"description": "1-based page number where the value was read", "minimum":
+      1.0, "title": "Page", "type": "INTEGER"}, "quote": {"description": "Exact text
+      as it appears on the page", "nullable": true, "title": "Quote", "type": "STRING"}},
+      "property_ordering": ["page", "quote"], "required": ["page"], "title": "Source",
+      "type": "OBJECT"}}, "property_ordering": ["value", "confidence", "source"],
+      "required": ["confidence"], "title": "ExtractedField", "type": "OBJECT"}, "subtotal":
+      {"description": "One extracted value as the model reports it. Values are strings;
+      normalization is applied\nafterwards according to the schema''s FieldKind.",
+      "properties": {"value": {"description": "Verbatim value, or null if not found",
+      "nullable": true, "title": "Value", "type": "STRING"}, "confidence": {"description":
+      "Model''s confidence that the value is right", "maximum": 1.0, "minimum": 0.0,
+      "title": "Confidence", "type": "NUMBER"}, "source": {"nullable": true, "properties":
+      {"page": {"description": "1-based page number where the value was read", "minimum":
+      1.0, "title": "Page", "type": "INTEGER"}, "quote": {"description": "Exact text
+      as it appears on the page", "nullable": true, "title": "Quote", "type": "STRING"}},
+      "property_ordering": ["page", "quote"], "required": ["page"], "title": "Source",
+      "type": "OBJECT"}}, "property_ordering": ["value", "confidence", "source"],
+      "required": ["confidence"], "title": "ExtractedField", "type": "OBJECT"}, "tax_amount":
+      {"description": "One extracted value as the model reports it. Values are strings;
+      normalization is applied\nafterwards according to the schema''s FieldKind.",
+      "properties": {"value": {"description": "Verbatim value, or null if not found",
+      "nullable": true, "title": "Value", "type": "STRING"}, "confidence": {"description":
+      "Model''s confidence that the value is right", "maximum": 1.0, "minimum": 0.0,
+      "title": "Confidence", "type": "NUMBER"}, "source": {"nullable": true, "properties":
+      {"page": {"description": "1-based page number where the value was read", "minimum":
+      1.0, "title": "Page", "type": "INTEGER"}, "quote": {"description": "Exact text
+      as it appears on the page", "nullable": true, "title": "Quote", "type": "STRING"}},
+      "property_ordering": ["page", "quote"], "required": ["page"], "title": "Source",
+      "type": "OBJECT"}}, "property_ordering": ["value", "confidence", "source"],
+      "required": ["confidence"], "title": "ExtractedField", "type": "OBJECT"}, "total":
+      {"description": "One extracted value as the model reports it. Values are strings;
+      normalization is applied\nafterwards according to the schema''s FieldKind.",
+      "properties": {"value": {"description": "Verbatim value, or null if not found",
+      "nullable": true, "title": "Value", "type": "STRING"}, "confidence": {"description":
+      "Model''s confidence that the value is right", "maximum": 1.0, "minimum": 0.0,
+      "title": "Confidence", "type": "NUMBER"}, "source": {"nullable": true, "properties":
+      {"page": {"description": "1-based page number where the value was read", "minimum":
+      1.0, "title": "Page", "type": "INTEGER"}, "quote": {"description": "Exact text
+      as it appears on the page", "nullable": true, "title": "Quote", "type": "STRING"}},
+      "property_ordering": ["page", "quote"], "required": ["page"], "title": "Source",
+      "type": "OBJECT"}}, "property_ordering": ["value", "confidence", "source"],
+      "required": ["confidence"], "title": "ExtractedField", "type": "OBJECT"}, "line_items":
+      {"items": {"properties": {"description": {"description": "One extracted value
+      as the model reports it. Values are strings; normalization is applied\nafterwards
+      according to the schema''s FieldKind.", "properties": {"value": {"description":
+      "Verbatim value, or null if not found", "nullable": true, "title": "Value",
+      "type": "STRING"}, "confidence": {"description": "Model''s confidence that the
+      value is right", "maximum": 1.0, "minimum": 0.0, "title": "Confidence", "type":
+      "NUMBER"}, "source": {"nullable": true, "properties": {"page": {"description":
+      "1-based page number where the value was read", "minimum": 1.0, "title": "Page",
+      "type": "INTEGER"}, "quote": {"description": "Exact text as it appears on the
+      page", "nullable": true, "title": "Quote", "type": "STRING"}}, "property_ordering":
+      ["page", "quote"], "required": ["page"], "title": "Source", "type": "OBJECT"}},
+      "property_ordering": ["value", "confidence", "source"], "required": ["confidence"],
+      "title": "ExtractedField", "type": "OBJECT"}, "quantity": {"description": "One
+      extracted value as the model reports it. Values are strings; normalization is
+      applied\nafterwards according to the schema''s FieldKind.", "properties": {"value":
+      {"description": "Verbatim value, or null if not found", "nullable": true, "title":
+      "Value", "type": "STRING"}, "confidence": {"description": "Model''s confidence
+      that the value is right", "maximum": 1.0, "minimum": 0.0, "title": "Confidence",
+      "type": "NUMBER"}, "source": {"nullable": true, "properties": {"page": {"description":
+      "1-based page number where the value was read", "minimum": 1.0, "title": "Page",
+      "type": "INTEGER"}, "quote": {"description": "Exact text as it appears on the
+      page", "nullable": true, "title": "Quote", "type": "STRING"}}, "property_ordering":
+      ["page", "quote"], "required": ["page"], "title": "Source", "type": "OBJECT"}},
+      "property_ordering": ["value", "confidence", "source"], "required": ["confidence"],
+      "title": "ExtractedField", "type": "OBJECT"}, "unit_price": {"description":
+      "One extracted value as the model reports it. Values are strings; normalization
+      is applied\nafterwards according to the schema''s FieldKind.", "properties":
+      {"value": {"description": "Verbatim value, or null if not found", "nullable":
+      true, "title": "Value", "type": "STRING"}, "confidence": {"description": "Model''s
+      confidence that the value is right", "maximum": 1.0, "minimum": 0.0, "title":
+      "Confidence", "type": "NUMBER"}, "source": {"nullable": true, "properties":
+      {"page": {"description": "1-based page number where the value was read", "minimum":
+      1.0, "title": "Page", "type": "INTEGER"}, "quote": {"description": "Exact text
+      as it appears on the page", "nullable": true, "title": "Quote", "type": "STRING"}},
+      "property_ordering": ["page", "quote"], "required": ["page"], "title": "Source",
+      "type": "OBJECT"}}, "property_ordering": ["value", "confidence", "source"],
+      "required": ["confidence"], "title": "ExtractedField", "type": "OBJECT"}, "amount":
+      {"description": "One extracted value as the model reports it. Values are strings;
+      normalization is applied\nafterwards according to the schema''s FieldKind.",
+      "properties": {"value": {"description": "Verbatim value, or null if not found",
+      "nullable": true, "title": "Value", "type": "STRING"}, "confidence": {"description":
+      "Model''s confidence that the value is right", "maximum": 1.0, "minimum": 0.0,
+      "title": "Confidence", "type": "NUMBER"}, "source": {"nullable": true, "properties":
+      {"page": {"description": "1-based page number where the value was read", "minimum":
+      1.0, "title": "Page", "type": "INTEGER"}, "quote": {"description": "Exact text
+      as it appears on the page", "nullable": true, "title": "Quote", "type": "STRING"}},
+      "property_ordering": ["page", "quote"], "required": ["page"], "title": "Source",
+      "type": "OBJECT"}}, "property_ordering": ["value", "confidence", "source"],
+      "required": ["confidence"], "title": "ExtractedField", "type": "OBJECT"}}, "property_ordering":
+      ["description", "quantity", "unit_price", "amount"], "required": ["description",
+      "quantity", "unit_price", "amount"], "title": "InvoiceLineItem", "type": "OBJECT"},
+      "title": "Line Items", "type": "ARRAY"}}, "property_ordering": ["detected_type",
+      "vendor_name", "vendor_tax_id", "invoice_number", "issue_date", "due_date",
+      "currency", "subtotal", "tax_amount", "total", "line_items"], "required": ["detected_type",
+      "vendor_name", "vendor_tax_id", "invoice_number", "issue_date", "due_date",
+      "currency", "subtotal", "tax_amount", "total", "line_items"], "title": "Invoice",
+      "type": "OBJECT"}}}'
+    headers:
+      accept:
+      - '*/*'
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '15113'
+      content-type:
+      - application/json
+      host:
+      - generativelanguage.googleapis.com
+      user-agent:
+      - google-genai-sdk/2.24.0 gl-python/3.13.15
+      x-goog-api-client:
+      - google-genai-sdk/2.24.0 gl-python/3.13.15
+    method: POST
+    uri: https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent
+  response:
+    body:
+      string: "{\n  \"candidates\": [\n    {\n      \"content\": {\n        \"parts\":
+        [\n          {\n            \"text\": \"{\\n  \\\"detected_type\\\": \\\"invoice\\\",\\n
+        \ \\\"vendor_name\\\": {\\n    \\\"value\\\": \\\"Acme Tools S.A.C.\\\",\\n
+        \   \\\"confidence\\\": 1,\\n    \\\"source\\\": {\\n      \\\"page\\\": 1,\\n
+        \     \\\"quote\\\": \\\"Acme Tools S.A.C.\\\"\\n    }\\n  },\\n  \\\"vendor_tax_id\\\":
+        {\\n    \\\"value\\\": \\\"20123456789\\\",\\n    \\\"confidence\\\": 1,\\n
+        \   \\\"source\\\": {\\n      \\\"page\\\": 1,\\n      \\\"quote\\\": \\\"20123456789\\\"\\n
+        \   }\\n  },\\n  \\\"invoice_number\\\": {\\n    \\\"value\\\": \\\"F001-000123\\\",\\n
+        \   \\\"confidence\\\": 1,\\n    \\\"source\\\": {\\n      \\\"page\\\": 1,\\n
+        \     \\\"quote\\\": \\\"F001-000123\\\"\\n    }\\n  },\\n  \\\"issue_date\\\":
+        {\\n    \\\"value\\\": \\\"15/03/2026\\\",\\n    \\\"confidence\\\": 1,\\n
+        \   \\\"source\\\": {\\n      \\\"page\\\": 1,\\n      \\\"quote\\\": \\\"15/03/2026\\\"\\n
+        \   }\\n  },\\n  \\\"due_date\\\": {\\n    \\\"value\\\": null,\\n    \\\"confidence\\\":
+        0,\\n    \\\"source\\\": null\\n  },\\n  \\\"currency\\\": {\\n    \\\"value\\\":
+        \\\"PEN\\\",\\n    \\\"confidence\\\": 1,\\n    \\\"source\\\": {\\n      \\\"page\\\":
+        1,\\n      \\\"quote\\\": \\\"PEN\\\"\\n    }\\n  },\\n  \\\"subtotal\\\":
+        {\\n    \\\"value\\\": \\\"1.045,00\\\",\\n    \\\"confidence\\\": 1,\\n    \\\"source\\\":
+        {\\n      \\\"page\\\": 1,\\n      \\\"quote\\\": \\\"1.045,00\\\"\\n    }\\n
+        \ },\\n  \\\"tax_amount\\\": {\\n    \\\"value\\\": \\\"189,56\\\",\\n    \\\"confidence\\\":
+        1,\\n    \\\"source\\\": {\\n      \\\"page\\\": 1,\\n      \\\"quote\\\":
+        \\\"189,56\\\"\\n    }\\n  },\\n  \\\"total\\\": {\\n    \\\"value\\\": \\\"1.234,56\\\",\\n
+        \   \\\"confidence\\\": 1,\\n    \\\"source\\\": {\\n      \\\"page\\\": 1,\\n
+        \     \\\"quote\\\": \\\"1.234,56\\\"\\n    }\\n  },\\n  \\\"line_items\\\":
+        [\\n    {\\n      \\\"description\\\": {\\n        \\\"value\\\": \\\"Taladro
+        industrial\\\",\\n        \\\"confidence\\\": 1,\\n        \\\"source\\\":
+        {\\n          \\\"page\\\": 1,\\n          \\\"quote\\\": \\\"Taladro industrial\\\"\\n
+        \       }\\n      },\\n      \\\"quantity\\\": {\\n        \\\"value\\\":
+        \\\"1\\\",\\n        \\\"confidence\\\": 1,\\n        \\\"source\\\": {\\n
+        \         \\\"page\\\": 1,\\n          \\\"quote\\\": \\\"x1\\\"\\n        }\\n
+        \     },\\n      \\\"unit_price\\\": {\\n        \\\"value\\\": \\\"1.045,00\\\",\\n
+        \       \\\"confidence\\\": 1,\\n        \\\"source\\\": {\\n          \\\"page\\\":
+        1,\\n          \\\"quote\\\": \\\"1.045,00\\\"\\n        }\\n      },\\n      \\\"amount\\\":
+        {\\n        \\\"value\\\": \\\"1.045,00\\\",\\n        \\\"confidence\\\":
+        1,\\n        \\\"source\\\": {\\n          \\\"page\\\": 1,\\n          \\\"quote\\\":
+        \\\"1.045,00\\\"\\n        }\\n      }\\n    }\\n  ]\\n}\",\n            \"thoughtSignature\":
+        \"El4KXAFpFH0TBhe50mQXXOdM8fmcXARsm9PMPPOGT2dIZpM15/Y86N+Iu1dd/RPB1LNH+FWZoyoUkNjVhNPPVkO1T90nzZ4SJR4JlHPQ8a8AJuk3FjJbEemRX1zqEjdP\"\n
+        \         }\n        ],\n        \"role\": \"model\"\n      },\n      \"finishReason\":
+        \"STOP\",\n      \"index\": 0\n    }\n  ],\n  \"usageMetadata\": {\n    \"promptTokenCount\":
+        396,\n    \"candidatesTokenCount\": 820,\n    \"totalTokenCount\": 1216,\n
+        \   \"promptTokensDetails\": [\n      {\n        \"modality\": \"TEXT\",\n
+        \       \"tokenCount\": 396\n      }\n    ],\n    \"serviceTier\": \"standard\"\n
+        \ },\n  \"modelVersion\": \"gemini-3.5-flash-lite\",\n  \"responseId\": \"t820at21LqbmqtsPp5Ox-Qc\"\n}\n"
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      content-length:
+      - '2933'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Thu, 24 Sep 2026 07:14:02 GMT
+      server:
+      - scaffolding on HTTPServer2
+      server-timing:
+      - gfet4t7; dur=3749
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-gemini-service-tier:
+      - standard
+      x-xss-protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+version: 1
