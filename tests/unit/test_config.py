@@ -1,3 +1,4 @@
+import ssl
 from collections.abc import Generator
 from decimal import Decimal
 
@@ -6,6 +7,7 @@ from pydantic import ValidationError
 from pytest import MonkeyPatch
 
 from contacompa.config import Settings, get_settings
+from contacompa.infrastructure.db.engine import tls_connect_args
 
 
 @pytest.fixture(autouse=True)
@@ -121,3 +123,19 @@ def test_neon_url_uses_asyncpg_and_verified_tls() -> None:
     assert settings.database_url == (
         "postgresql+asyncpg://user:p%40ss@ep-demo.neon.tech/demo?ssl=verify-full"
     )
+
+
+def test_verify_full_uses_system_cas_not_root_crt() -> None:
+    """verify-full becomes a default SSL context, so asyncpg never looks for root.crt."""
+    url, connect_args = tls_connect_args(
+        "postgresql+asyncpg://user:p%40ss@ep-demo.neon.tech/demo?ssl=verify-full"
+    )
+    assert url == "postgresql+asyncpg://user:p%40ss@ep-demo.neon.tech/demo"
+    context = connect_args["ssl"]
+    assert isinstance(context, ssl.SSLContext)
+    assert context.check_hostname and context.verify_mode == ssl.CERT_REQUIRED
+
+
+def test_other_ssl_modes_pass_through() -> None:
+    raw = "postgresql+asyncpg://user@localhost/test?ssl=require"
+    assert tls_connect_args(raw) == (raw, {})
