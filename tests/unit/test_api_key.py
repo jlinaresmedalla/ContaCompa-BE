@@ -1,9 +1,12 @@
-"""API key rules (ADR 0017): random secret, sha256 hash, 12-hour expiry, admin key check."""
+"""API key rules (ADR 0017, 0022): random secret, sha256 hash, chosen life, admin key check."""
 
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from contacompa.domain.api_key import (
-    API_KEY_TTL,
+    DEFAULT_TTL_HOURS,
+    MAX_TTL_HOURS,
     admin_key_matches,
     expiry_from,
     generate_api_key,
@@ -29,7 +32,7 @@ def test_hash_is_sha256_hex_and_not_the_key() -> None:
 
 def test_key_lives_twelve_hours() -> None:
     expires_at = expiry_from(NOW)
-    assert API_KEY_TTL == timedelta(hours=12)
+    assert DEFAULT_TTL_HOURS == 12
     assert expires_at == NOW + timedelta(hours=12)
     assert is_live(expires_at, NOW + timedelta(hours=11, minutes=59))
     assert not is_live(expires_at, expires_at)
@@ -45,3 +48,14 @@ def test_admin_key_check() -> None:
     assert not admin_key_matches("", "")
     assert not admin_key_matches(None, None)
     assert not admin_key_matches("s3crét", "s3cret")  # non-ASCII must not raise
+
+
+def test_key_life_is_chosen_at_minting() -> None:
+    assert expiry_from(NOW, 1) == NOW + timedelta(hours=1)
+    assert expiry_from(NOW, MAX_TTL_HOURS) == NOW + timedelta(hours=168)
+
+
+@pytest.mark.parametrize("hours", [0, -1, MAX_TTL_HOURS + 1])
+def test_key_life_outside_bounds_is_rejected(hours: int) -> None:
+    with pytest.raises(ValueError, match="between 1 and 168"):
+        expiry_from(NOW, hours)

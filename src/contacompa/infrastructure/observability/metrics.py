@@ -83,6 +83,8 @@ class Instruments:
     jobs_queued: ObservableGauge
     jobs_oldest_age_seconds: ObservableGauge
     jobs_failed_total: Counter
+    jobs_released_total: Counter
+    provider_breaker_transitions_total: Counter
 
 
 @lru_cache
@@ -103,4 +105,8 @@ def get_instruments() -> Instruments:
             "jobs_oldest_age_seconds", callbacks=[oldest_age_callback]
         ),
         jobs_failed_total=meter.create_counter("jobs_failed_total"),
+        jobs_released_total=meter.create_counter("jobs_released_total"),
+        provider_breaker_transitions_total=meter.create_counter(
+            "provider_breaker_transitions_total"
+        ),
     )

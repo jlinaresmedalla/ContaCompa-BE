@@ -200,6 +200,21 @@ class DailySpend(Base):
     cost_usd: Mapped[Decimal] = mapped_column(Numeric(12, 6), nullable=False, server_default="0")
 
 
+class ProviderStatus(Base):
+    """Circuit-breaker state per model provider, written by the worker, read by the monitor."""
+
+    __tablename__ = "provider_status"
+
+    provider: Mapped[str] = mapped_column(Text, primary_key=True)
+    state: Mapped[str] = mapped_column(Text, nullable=False)
+    open_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    consecutive_failures: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    reason: Mapped[str | None] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 class PurchaseDoc(Base):
     __tablename__ = "purchase_docs"
     __table_args__ = (

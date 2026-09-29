@@ -24,6 +24,7 @@ EXPECTED_TABLES = {
     "eval_runs",
     "eval_results",
     "daily_spend",
+    "provider_status",
 }
 
 

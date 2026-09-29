@@ -26,6 +26,11 @@ class InvalidOutputError(ProviderError):
     """The model returned something that is not a JSON object matching the request."""
 
 
+def is_outage(exc: BaseException) -> bool:
+    """A failure that says the provider is down, not that this request is bad."""
+    return isinstance(exc, ProviderUnavailableError | RateLimitedError)
+
+
 class ProviderResult(BaseModel):
     model_output: dict[str, Any]
     usage: Usage

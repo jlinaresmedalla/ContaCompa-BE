@@ -101,6 +101,28 @@ async def fail(session: AsyncSession, job_id: UUID, error: str, worker_id: str) 
     return status
 
 
+async def release(
+    session: AsyncSession, job_id: UUID, run_after: datetime, reason: str, worker_id: str
+) -> bool:
+    """Send a job back to the queue without spending an attempt (a provider outage, not a defect).
+
+    One statement, guarded by the lease like `fail`. Returns False when `worker_id` no longer
+    holds the job's lease."""
+    stmt = (
+        update(Job)
+        .where(Job.id == job_id, Job.status == JobStatus.PROCESSING, Job.locked_by == worker_id)
+        .values(
+            status=JobStatus.QUEUED,
+            locked_at=None,
+            locked_by=None,
+            run_after=run_after,
+            last_error=reason[:MAX_ERROR_LEN],
+        )
+        .returning(Job.id)
+    )
+    return (await session.execute(stmt)).scalar_one_or_none() is not None
+
+
 async def reap_expired(session: AsyncSession, lease: timedelta) -> int:
     cutoff = _now() - lease
     stmt = (

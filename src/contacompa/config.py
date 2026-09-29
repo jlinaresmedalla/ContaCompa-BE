@@ -50,6 +50,12 @@ class Settings(BaseSettings):
     max_upload_bytes: int = 10 * 1024 * 1024
     max_pages: int = 10
 
+    # provider circuit breaker and request timeout (ADR 0021)
+    breaker_threshold: int = 3
+    breaker_cooldown_seconds: int = 60
+    breaker_max_cooldown_seconds: int = 600
+    provider_timeout_seconds: int = 60
+
     @model_validator(mode="after")
     def require_blob_dir_without_s3(self) -> Self:
         if not self.s3_bucket and not self.blob_dir:

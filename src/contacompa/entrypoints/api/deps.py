@@ -30,8 +30,9 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
 
 
 # Security schemes (not plain headers) so Swagger UI shows an "Authorize" button for each.
-api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
-admin_key_header = APIKeyHeader(name="X-Admin-Key", auto_error=False)
+# Distinct scheme names: both default to "APIKeyHeader", and OpenAPI keeps only one of them.
+api_key_header = APIKeyHeader(name="X-API-Key", scheme_name="ApiKey", auto_error=False)
+admin_key_header = APIKeyHeader(name="X-Admin-Key", scheme_name="AdminKey", auto_error=False)
 
 
 @dataclass(frozen=True)

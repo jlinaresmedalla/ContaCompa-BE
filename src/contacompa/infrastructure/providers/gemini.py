@@ -3,10 +3,12 @@
 Google may use free-tier inputs for training; ADR 0005 records which documents are sent here.
 """
 
+import asyncio
 import json
 import time
 from typing import Any
 
+import httpx
 from aiolimiter import AsyncLimiter
 from google import genai
 from google.genai import errors as genai_errors
@@ -17,6 +19,7 @@ from tenacity import (
     RetryCallState,
     retry_if_exception_type,
     stop_after_attempt,
+    stop_after_delay,
     wait_exponential_jitter,
 )
 
@@ -39,16 +42,20 @@ from contacompa.infrastructure.providers.registry import register
 
 _tracer = get_tracer(__name__)
 
+MAX_RETRY_AFTER_SECONDS = 60.0  # a server asking for a longer wait is treated as an outage
+MAX_DEADLINE_SECONDS = 180.0
+DEADLINE_LEASE_FRACTION = 0.6  # one job's provider time must stay well below the worker lease
+
 
 def map_error(exc: Exception) -> ProviderError:
     code = getattr(exc, "code", None)
     if isinstance(exc, genai_errors.APIError):
         if code == 429:
             return RateLimitedError("gemini rate limited", retry_after_seconds=_retry_after(exc))
-        if code is not None and code >= 500:
+        if code == 408 or (code is not None and code >= 500):
             return ProviderUnavailableError(f"gemini server error {code}")
         return ProviderError(f"gemini request failed ({code})")
-    if isinstance(exc, TimeoutError | ConnectionError):
+    if isinstance(exc, TimeoutError | ConnectionError | httpx.TransportError):
         return ProviderUnavailableError(f"gemini unreachable: {type(exc).__name__}")
     return ProviderError(f"gemini failure: {type(exc).__name__}")
 
@@ -75,8 +82,14 @@ class GeminiProvider:
         requests_per_minute: int = 10,
         max_attempts: int = 4,
         limiter: AsyncLimiter | None = None,
+        timeout_seconds: float = 60,
+        deadline_seconds: float = MAX_DEADLINE_SECONDS,
     ) -> None:
-        self._client = genai.Client(api_key=api_key)
+        self._timeout_seconds = timeout_seconds
+        self._deadline_seconds = deadline_seconds
+        self._client = genai.Client(
+            api_key=api_key, http_options=types.HttpOptions(timeout=int(timeout_seconds * 1000))
+        )
         self._limiter = limiter or AsyncLimiter(requests_per_minute, 60)
         self._max_attempts = max_attempts
 
@@ -84,7 +97,13 @@ class GeminiProvider:
     def from_settings(cls, settings: Settings) -> "GeminiProvider":
         if settings.google_api_key is None:
             raise ProviderError("GOOGLE_API_KEY is not configured")
-        return cls(settings.google_api_key.get_secret_value())
+        return cls(
+            settings.google_api_key.get_secret_value(),
+            timeout_seconds=settings.provider_timeout_seconds,
+            deadline_seconds=min(
+                MAX_DEADLINE_SECONDS, DEADLINE_LEASE_FRACTION * settings.worker_lease_seconds
+            ),
+        )
 
     @trace_llm_call("google_genai")
     async def extract(
@@ -142,20 +161,29 @@ class GeminiProvider:
     async def _generate_with_retry(
         self, model: str, contents: list[Any], config: types.GenerateContentConfig
     ) -> types.GenerateContentResponse:
-        async for attempt in AsyncRetrying(
-            stop=stop_after_attempt(self._max_attempts),
-            wait=_wait,
-            retry=retry_if_exception_type((RateLimitedError, ProviderUnavailableError)),
-            reraise=True,
-        ):
-            with attempt:
-                async with self._limiter:
-                    try:
-                        return await self._client.aio.models.generate_content(
-                            model=model, contents=contents, config=config
-                        )
-                    except Exception as exc:
-                        raise map_error(exc) from exc
+        """Retry outages within one total deadline (limiter waits, calls and back-off included)."""
+        try:
+            async with asyncio.timeout(self._deadline_seconds):
+                async for attempt in AsyncRetrying(
+                    stop=stop_after_attempt(self._max_attempts)
+                    | stop_after_delay(self._deadline_seconds),
+                    wait=_wait,
+                    retry=retry_if_exception_type((RateLimitedError, ProviderUnavailableError)),
+                    reraise=True,
+                ):
+                    with attempt:
+                        async with self._limiter:
+                            try:
+                                # The client's own timeout fires first; this cap covers any
+                                # transport that ignores it.
+                                async with asyncio.timeout(self._timeout_seconds + 5):
+                                    return await self._client.aio.models.generate_content(
+                                        model=model, contents=contents, config=config
+                                    )
+                            except Exception as exc:
+                                raise map_error(exc) from exc
+        except TimeoutError as exc:
+            raise ProviderUnavailableError("gemini deadline exceeded") from exc
         raise ProviderUnavailableError("gemini retries exhausted")  # pragma: no cover
 
 
@@ -165,7 +193,7 @@ _base_wait = wait_exponential_jitter(initial=1, max=30)
 def _wait(state: RetryCallState) -> float:
     exc = state.outcome.exception() if state.outcome else None
     if isinstance(exc, RateLimitedError) and exc.retry_after_seconds:
-        return exc.retry_after_seconds
+        return min(exc.retry_after_seconds, MAX_RETRY_AFTER_SECONDS)
     return _base_wait(state)
 
 

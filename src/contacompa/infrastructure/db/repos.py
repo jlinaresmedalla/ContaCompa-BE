@@ -3,7 +3,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import case, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +16,7 @@ from contacompa.infrastructure.db.models import (
     Document,
     ExtractionResult,
     Job,
+    ProviderStatus,
 )
 
 
@@ -127,3 +128,51 @@ async def daily_spend(session: AsyncSession, day: date | None = None) -> Decimal
     key = day or datetime.now(UTC).date()
     row = await session.get(DailySpend, key)
     return row.cost_usd if row is not None else Decimal("0")
+
+
+async def save_provider_status(
+    session: AsyncSession,
+    *,
+    provider: str,
+    state: str,
+    open_until: datetime | None,
+    consecutive_failures: int,
+    reason: str | None,
+) -> None:
+    """Write the breaker state of one provider (one row per provider)."""
+    values = {
+        "state": state,
+        "open_until": open_until,
+        "consecutive_failures": consecutive_failures,
+        "reason": reason,
+        "updated_at": datetime.now(UTC),
+    }
+    stmt = insert(ProviderStatus).values(provider=provider, **values)
+    await session.execute(stmt.on_conflict_do_update(index_elements=["provider"], set_=values))
+
+
+async def reset_provider_status(session: AsyncSession) -> None:
+    """Worker start: a new process begins with closed breakers, so drop any stale open state."""
+    await session.execute(
+        update(ProviderStatus)
+        .where(ProviderStatus.state != "closed")
+        .values(
+            state="closed",
+            open_until=None,
+            consecutive_failures=0,
+            reason=None,
+            updated_at=datetime.now(UTC),
+        )
+    )
+
+
+async def get_provider_status(session: AsyncSession) -> ProviderStatus | None:
+    """The provider to show: one that is not closed first, else the most recently updated."""
+    stmt = (
+        select(ProviderStatus)
+        .order_by(
+            case((ProviderStatus.state == "closed", 1), else_=0), ProviderStatus.updated_at.desc()
+        )
+        .limit(1)
+    )
+    return (await session.execute(stmt)).scalar_one_or_none()

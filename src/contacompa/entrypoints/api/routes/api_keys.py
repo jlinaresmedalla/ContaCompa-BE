@@ -9,9 +9,11 @@ router = APIRouter(prefix="/v1/api-keys", tags=["api keys"])
 
 @router.post("", status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_admin_key)])
 async def mint_api_key(body: MintKeyIn, session: SessionDep) -> MintedKeyOut:
-    """Mint a 12-hour API key for a seeded company. Authorized with `X-Admin-Key`."""
+    """Mint an API key for a seeded company, valid `hours` (default 12, 1 to 168).
+
+    Authorized with `X-Admin-Key`."""
     try:
-        minted = await api_keys.mint_api_key(session, body.company_ruc)
+        minted = await api_keys.mint_api_key(session, body.company_ruc, body.hours)
     except LookupError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
     return MintedKeyOut(

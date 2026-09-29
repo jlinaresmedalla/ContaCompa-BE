@@ -7,9 +7,10 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from contacompa.application.services.costs import CostLine, CostReport
-from contacompa.application.services.monitor import JobRow
+from contacompa.application.services.monitor import JobRow, ProviderInfo
 from contacompa.application.services.observations import ObservationReport
 from contacompa.application.services.records import PurchaseDocView
+from contacompa.domain.api_key import DEFAULT_TTL_HOURS, MAX_TTL_HOURS
 from contacompa.domain.checks import Severity, has_warnings, severity_of
 from contacompa.domain.igv import CENTS, UNIT_PRICE_PLACES, both_prices, doc_totals
 from contacompa.domain.purchase_doc import DocType, SourceKind
@@ -18,6 +19,7 @@ from contacompa.infrastructure.db.models import PurchaseDoc, PurchaseDocLine, Su
 
 class MintKeyIn(BaseModel):
     company_ruc: str
+    hours: int = Field(DEFAULT_TTL_HOURS, ge=1, le=MAX_TTL_HOURS, description="key life in hours")
 
 
 class MintedKeyOut(BaseModel):
@@ -252,9 +254,21 @@ class JobRowOut(BaseModel):
         return cls.model_validate(row, from_attributes=True)
 
 
+class ProviderOut(BaseModel):
+    name: str
+    state: str
+    open_until: datetime | None
+    reason: str | None
+
+    @classmethod
+    def build(cls, info: ProviderInfo) -> "ProviderOut":
+        return cls.model_validate(info, from_attributes=True)
+
+
 class MonitorOut(BaseModel):
     counts: dict[str, int]
     jobs: list[JobRowOut]
+    provider: ProviderOut | None
 
 
 class CostLineOut(BaseModel):

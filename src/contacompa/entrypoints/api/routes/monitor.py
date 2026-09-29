@@ -7,7 +7,7 @@ from contacompa.application.services import monitor
 from contacompa.application.services.costs import cost_report
 from contacompa.application.services.monitor import RetryError
 from contacompa.entrypoints.api.deps import CompanyDep, SessionDep
-from contacompa.entrypoints.api.schemas import CostReportOut, JobRowOut, MonitorOut
+from contacompa.entrypoints.api.schemas import CostReportOut, JobRowOut, MonitorOut, ProviderOut
 
 router = APIRouter(prefix="/v1", tags=["monitor and costs"])
 
@@ -18,10 +18,15 @@ async def get_monitor(
     company: CompanyDep,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> MonitorOut:
-    """Job counts by status and the latest jobs with their document and purchase doc."""
+    """Job counts by status, the latest jobs, and the model provider's breaker state."""
     counts = await monitor.job_counts(session, company.id)
     rows = await monitor.recent_jobs(session, company.id, limit)
-    return MonitorOut(counts=counts, jobs=[JobRowOut.build(row) for row in rows])
+    provider = await monitor.provider_info(session)
+    return MonitorOut(
+        counts=counts,
+        jobs=[JobRowOut.build(row) for row in rows],
+        provider=ProviderOut.build(provider) if provider else None,
+    )
 
 
 @router.post("/jobs/{job_id}/retry", status_code=status.HTTP_202_ACCEPTED)

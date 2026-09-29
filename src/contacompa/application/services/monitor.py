@@ -11,6 +11,7 @@ from contacompa.domain.checks import has_warnings
 from contacompa.domain.config import RunConfig
 from contacompa.infrastructure.db import queue
 from contacompa.infrastructure.db.models import Document, Job, JobStatus, PurchaseDoc
+from contacompa.infrastructure.db.repos import get_provider_status
 
 
 class RetryError(Exception):
@@ -32,6 +33,22 @@ class JobRow:
     observations: int
     warnings: bool
     doc_number: str | None
+
+
+@dataclass(frozen=True)
+class ProviderInfo:
+    name: str
+    state: str
+    open_until: datetime | None
+    reason: str | None
+
+
+async def provider_info(session: AsyncSession) -> ProviderInfo | None:
+    """The model provider's breaker state as the worker last wrote it; None before any change."""
+    row = await get_provider_status(session)
+    if row is None:
+        return None
+    return ProviderInfo(row.provider, row.state, row.open_until, row.reason)
 
 
 async def job_counts(session: AsyncSession, company_id: UUID) -> dict[str, int]:

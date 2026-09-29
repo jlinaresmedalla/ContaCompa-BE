@@ -58,6 +58,11 @@ def test_instrument_names_match_the_contract() -> None:
     assert _instrument_name(inst.jobs_queued) == "jobs_queued"
     assert _instrument_name(inst.jobs_oldest_age_seconds) == "jobs_oldest_age_seconds"
     assert _instrument_name(inst.jobs_failed_total) == "jobs_failed_total"
+    assert _instrument_name(inst.jobs_released_total) == "jobs_released_total"
+    assert (
+        _instrument_name(inst.provider_breaker_transitions_total)
+        == "provider_breaker_transitions_total"
+    )
 
 
 def test_set_queue_stats_feeds_the_gauge_callbacks() -> None:
