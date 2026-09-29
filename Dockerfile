@@ -17,10 +17,10 @@ ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 APP_GIT_SHA=$GIT_SHA APP_BUIL
 RUN groupadd --gid 10001 app && useradd --uid 10001 --gid app --create-home app \
     && mkdir -p /data/blobs && chown app:app /data/blobs
 COPY --from=builder --chown=app:app /app /app
-# Hosted command (render.yaml dockerCommand): migrations, worker and API in one container.
+# Default command: migrations, worker and API in one container (the hosted setup).
 COPY --chmod=755 deploy/start.sh /usr/local/bin/start.sh
 USER app
 WORKDIR /app
 EXPOSE 8000
-# Local default is the API only; docker-compose runs migrate and worker as separate services.
-CMD ["uvicorn", "contacompa.entrypoints.api.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+# docker-compose overrides it per service (migrate, api, worker), so local runs never use it.
+CMD ["/usr/local/bin/start.sh"]
