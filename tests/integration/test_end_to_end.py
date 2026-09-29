@@ -20,9 +20,10 @@ from contacompa.config import Settings
 from contacompa.domain.schemas import get_schema
 from contacompa.entrypoints.api.app import create_app
 from contacompa.entrypoints.worker import Worker
-from contacompa.infrastructure.blob import LocalBlobStore
+from contacompa.infrastructure.blob import make_blob_store
 from contacompa.infrastructure.db import queue
 from tests.conftest import make_invoice_pdf
+from tests.integration.conftest import make_company
 
 pytestmark = pytest.mark.integration
 HEADERS = {"X-API-Key": "test-key"}
@@ -49,7 +50,6 @@ def settings(pg_url: str, tmp_path: Path) -> Settings:
     return Settings(
         _env_file=None,
         database_url=pg_url,
-        api_key="test-key",
         blob_dir=str(tmp_path / "blobs"),
         google_api_key=os.environ.get("GOOGLE_API_KEY", "replay-key"),
     )
@@ -61,6 +61,8 @@ async def client(
 ) -> AsyncIterator[AsyncClient]:
     app = create_app(settings, telemetry=False)
     async with app.router.lifespan_context(app):
+        async with sessions() as session:
+            await make_company(session)
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
             yield c
 
@@ -78,7 +80,7 @@ async def test_submit_process_and_fetch_result(
     assert submitted.status_code == 202, submitted.text
     ids = submitted.json()
 
-    worker = Worker(settings, sessions, LocalBlobStore(Path(settings.blob_dir)))
+    worker = Worker(settings, sessions, make_blob_store(settings))
     async with sessions() as session:
         job = await queue.claim(session, "w-test")
         await session.commit()

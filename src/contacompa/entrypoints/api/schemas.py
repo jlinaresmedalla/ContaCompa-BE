@@ -16,6 +16,28 @@ from contacompa.domain.purchase_doc import DocType, SourceKind
 from contacompa.infrastructure.db.models import PurchaseDoc, PurchaseDocLine, Supplier
 
 
+class MintKeyIn(BaseModel):
+    company_ruc: str
+
+
+class MintedKeyOut(BaseModel):
+    """The only time the key is shown; only its hash is stored."""
+
+    api_key: str
+    company_ruc: str
+    expires_at: datetime
+
+
+class CompanyOut(BaseModel):
+    ruc: str
+    legal_name: str
+
+
+class MeOut(BaseModel):
+    company: CompanyOut
+    expires_at: datetime
+
+
 class SupplierOut(BaseModel):
     ruc: str | None
     legal_name: str | None

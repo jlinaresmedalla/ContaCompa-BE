@@ -45,7 +45,6 @@ def test_settings(tmp_path: Path) -> Iterator[Settings]:
     settings = Settings(
         _env_file=None,
         database_url="postgresql+asyncpg://app:app@localhost:5432/test",
-        api_key="test-key",
         blob_dir=str(tmp_path / "blobs"),
         daily_cost_ceiling_usd=Decimal("1.00"),
     )

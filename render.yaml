@@ -1,0 +1,45 @@
+# Render Blueprint: one free web service running migrations, the worker and the API from one image.
+# Secrets use `sync: false`: Render asks for them in the dashboard on first apply; they are never
+# stored in this file. Setup steps and the smoke check are in docs/deploy.md.
+services:
+  - type: web
+    name: contacompa-api
+    runtime: docker
+    plan: free
+    region: ohio
+    repo: https://github.com/jlinaresmedalla/ContaCompa
+    branch: main
+    dockerfilePath: ./Dockerfile
+    # Starts migrations, worker and API; exits when either process dies so Render restarts it.
+    dockerCommand: /usr/local/bin/start.sh
+    healthCheckPath: /readyz
+    autoDeploy: true
+    envVars:
+      # not secret
+      - key: PORT
+        value: "8000"
+      - key: S3_BUCKET
+        value: documents
+      - key: AWS_REGION
+        value: us-east-2
+      - key: LANGSMITH_TRACING
+        value: "true"
+      - key: LANGSMITH_PROJECT
+        value: contacompa
+      # secrets and per-account values: set in the Render dashboard
+      - key: DATABASE_URL # Neon connection string (direct, not pooled)
+        sync: false
+      - key: ADMIN_API_KEY # long random string; authorizes POST /v1/api-keys
+        sync: false
+      - key: GOOGLE_API_KEY # Gemini free tier
+        sync: false
+      - key: LANGSMITH_API_KEY # without it tracing stays off
+        sync: false
+      - key: AWS_ENDPOINT_URL_S3 # Neon Object Storage endpoint
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: CORS_ORIGINS # JSON list with the Pages origin: ["https://<name>.pages.dev"]
+        sync: false

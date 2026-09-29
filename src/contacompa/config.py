@@ -1,7 +1,8 @@
 from decimal import Decimal
 from functools import lru_cache
+from typing import Self
 
-from pydantic import SecretStr, field_validator
+from pydantic import SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
@@ -11,10 +12,16 @@ class Settings(BaseSettings):
 
     # required
     database_url: str
-    api_key: SecretStr
-    blob_dir: str
 
-    # the company the configured API key belongs to (seeded at startup; more companies via SQL)
+    # file storage: an S3-compatible bucket when s3_bucket is set (credentials and endpoint come
+    # from the standard AWS_* variables, read by boto3), else the disk store under blob_dir
+    s3_bucket: str | None = None
+    blob_dir: str | None = None
+
+    # secret that authorizes minting API keys (POST /v1/api-keys); unset means minting is disabled
+    admin_api_key: SecretStr | None = None
+
+    # the company seeded at startup (more companies via SQL)
     company_ruc: str = "20543306771"
     company_name: str = "CORPORACION CIMMSA S.A."
 
@@ -42,6 +49,12 @@ class Settings(BaseSettings):
     worker_lease_seconds: int = 300
     max_upload_bytes: int = 10 * 1024 * 1024
     max_pages: int = 10
+
+    @model_validator(mode="after")
+    def require_blob_dir_without_s3(self) -> Self:
+        if not self.s3_bucket and not self.blob_dir:
+            raise ValueError("BLOB_DIR is required when S3_BUCKET is not set")
+        return self
 
     @field_validator("database_url")
     @classmethod

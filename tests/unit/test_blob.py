@@ -5,12 +5,31 @@ from pathlib import Path
 from typing import Any, cast
 
 import pytest
+from botocore.exceptions import ClientError
+from botocore.stub import Stubber
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from pytest import MonkeyPatch
 
+from contacompa.config import Settings
+from contacompa.entrypoints.api.routes import ops
 from contacompa.infrastructure.blob import (
     BlobStore,
     LocalBlobStore,
+    S3BlobStore,
+    make_blob_store,
     sha256_hex,
 )
+
+DB_URL = "postgresql://localhost/test"
+
+
+def _aws_env(monkeypatch: MonkeyPatch) -> None:
+    """Fake AWS variables so building the S3 client needs no real credentials."""
+    monkeypatch.setenv("AWS_ENDPOINT_URL_S3", "http://127.0.0.1:1")
+    monkeypatch.setenv("AWS_REGION", "us-east-2")
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "test")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "test")
 
 
 class TestSha256Hex:
@@ -208,3 +227,139 @@ class TestLocalBlobStore:
         # If this passes type checking, the protocol is satisfied
         result = _assert_protocol(store)
         assert result is store
+
+
+class TestMakeBlobStore:
+    """The factory picks the store from settings."""
+
+    def test_disk_store_without_s3_bucket(self, tmp_path: Path) -> None:
+        settings = Settings(
+            _env_file=None, database_url=DB_URL, blob_dir=str(tmp_path), s3_bucket=None
+        )
+        store = make_blob_store(settings)
+        assert isinstance(store, LocalBlobStore)
+        assert store.root == tmp_path
+
+    def test_s3_store_with_s3_bucket(self, monkeypatch: MonkeyPatch) -> None:
+        _aws_env(monkeypatch)
+        settings = Settings(_env_file=None, database_url=DB_URL, s3_bucket="documents")
+        store = make_blob_store(settings)
+        assert isinstance(store, S3BlobStore)
+        assert store.bucket == "documents"
+
+    def test_s3_bucket_wins_over_blob_dir(self, monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
+        _aws_env(monkeypatch)
+        settings = Settings(
+            _env_file=None, database_url=DB_URL, s3_bucket="documents", blob_dir=str(tmp_path)
+        )
+        assert isinstance(make_blob_store(settings), S3BlobStore)
+
+
+class TestS3BlobStoreKeys:
+    """The S3 store rejects the same invalid keys as the disk store, before any network call."""
+
+    @pytest.mark.parametrize("key", ["../x", "ABC" + "a" * 61, "a" * 63, "g" * 64, ""])
+    def test_invalid_keys(self, monkeypatch: MonkeyPatch, key: str) -> None:
+        _aws_env(monkeypatch)
+        store = S3BlobStore("documents")
+        for call in (
+            store.put(key, b"x"),
+            store.get(key),
+            store.exists(key),
+            store.delete(key),
+        ):
+            with pytest.raises(ValueError, match="invalid blob key"):
+                asyncio.run(call)
+
+
+class TestS3BlobStoreCalls:
+    """S3 behavior against botocore's Stubber: no network, unexpected calls fail the test."""
+
+    KEY = "a" * 64
+
+    def _store(self, monkeypatch: MonkeyPatch) -> S3BlobStore:
+        _aws_env(monkeypatch)
+        return S3BlobStore("documents")
+
+    def test_get_missing_raises_file_not_found(self, monkeypatch: MonkeyPatch) -> None:
+        store = self._store(monkeypatch)
+        with Stubber(store._client) as stub:
+            stub.add_client_error("get_object", "NoSuchKey", http_status_code=404)
+            with pytest.raises(FileNotFoundError, match=self.KEY):
+                asyncio.run(store.get(self.KEY))
+
+    def test_exists_false_on_404(self, monkeypatch: MonkeyPatch) -> None:
+        store = self._store(monkeypatch)
+        with Stubber(store._client) as stub:
+            stub.add_client_error("head_object", "404", http_status_code=404)
+            assert asyncio.run(store.exists(self.KEY)) is False
+
+    def test_exists_raises_on_403(self, monkeypatch: MonkeyPatch) -> None:
+        store = self._store(monkeypatch)
+        with Stubber(store._client) as stub:
+            stub.add_client_error("head_object", "403", http_status_code=403)
+            with pytest.raises(ClientError):
+                asyncio.run(store.exists(self.KEY))
+
+    def test_put_missing_key_uploads(self, monkeypatch: MonkeyPatch) -> None:
+        store = self._store(monkeypatch)
+        with Stubber(store._client) as stub:
+            stub.add_client_error("head_object", "404", http_status_code=404)
+            stub.add_response(
+                "put_object",
+                {},
+                {"Bucket": "documents", "Key": self.KEY, "Body": b"abc"},
+            )
+            asyncio.run(store.put(self.KEY, b"abc"))
+            stub.assert_no_pending_responses()
+
+    def test_put_same_length_is_a_noop(self, monkeypatch: MonkeyPatch) -> None:
+        store = self._store(monkeypatch)
+        with Stubber(store._client) as stub:
+            stub.add_response("head_object", {"ContentLength": 3})
+            asyncio.run(store.put(self.KEY, b"abc"))  # a PUT here would fail: none is queued
+            stub.assert_no_pending_responses()
+
+    def test_put_different_length_is_a_collision(self, monkeypatch: MonkeyPatch) -> None:
+        store = self._store(monkeypatch)
+        with Stubber(store._client) as stub:
+            stub.add_response("head_object", {"ContentLength": 5})
+            with pytest.raises(ValueError, match="blob key collision"):
+                asyncio.run(store.put(self.KEY, b"abc"))
+
+
+class _FailingStore:
+    async def check(self) -> None:
+        raise ConnectionError("unreachable")
+
+
+class _OkSession:
+    async def __aenter__(self) -> "_OkSession":
+        return self
+
+    async def __aexit__(self, *_: object) -> None:
+        return None
+
+    async def execute(self, _: object) -> None:
+        return None
+
+
+def _readyz(blobs: object) -> tuple[int, dict[str, str]]:
+    app = FastAPI()
+    app.include_router(ops.router)
+    app.state.sessions = _OkSession
+    app.state.blobs = blobs
+    response = TestClient(app).get("/readyz")
+    return response.status_code, response.json()
+
+
+class TestReadyz:
+    def test_ok_when_store_is_reachable(self, tmp_path: Path) -> None:
+        status, body = _readyz(LocalBlobStore(tmp_path / "blobs"))
+        assert status == 200
+        assert body["blob"] == "ok"
+
+    def test_503_when_store_is_unreachable(self) -> None:
+        status, body = _readyz(_FailingStore())
+        assert status == 503
+        assert body["blob"] == "error: ConnectionError"

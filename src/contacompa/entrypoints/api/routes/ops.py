@@ -23,8 +23,8 @@ async def readyz(request: Request, response: Response) -> dict[str, str]:
     except Exception as exc:
         checks["db"] = f"error: {type(exc).__name__}"
     try:
-        blobs = request.app.state.blobs
-        checks["blob"] = "ok" if blobs is not None else "error: not configured"
+        await request.app.state.blobs.check()
+        checks["blob"] = "ok"
     except Exception as exc:
         checks["blob"] = f"error: {type(exc).__name__}"
     checks["provider"] = "skipped"

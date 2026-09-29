@@ -9,7 +9,6 @@ import signal
 import socket
 import time
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -18,7 +17,7 @@ from contacompa.application.pipeline import extract
 from contacompa.application.services.processing import record_success
 from contacompa.config import Settings, get_settings
 from contacompa.domain.config import RunConfig
-from contacompa.infrastructure.blob import BlobStore, LocalBlobStore
+from contacompa.infrastructure.blob import BlobStore, make_blob_store
 from contacompa.infrastructure.db import queue
 from contacompa.infrastructure.db.engine import make_engine, make_session_factory
 from contacompa.infrastructure.db.models import Job
@@ -163,7 +162,7 @@ async def main() -> None:
     configure_langsmith(settings)
     engine = make_engine(settings.database_url)
     instrument_sqlalchemy(engine)
-    worker = Worker(settings, make_session_factory(engine), LocalBlobStore(Path(settings.blob_dir)))
+    worker = Worker(settings, make_session_factory(engine), make_blob_store(settings))
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(sig, worker.stop)

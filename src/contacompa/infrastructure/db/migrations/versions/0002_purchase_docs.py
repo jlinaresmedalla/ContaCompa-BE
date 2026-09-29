@@ -148,10 +148,11 @@ def upgrade() -> None:
     )
     op.create_index("ix_corrections_purchase_doc_id", "corrections", ["purchase_doc_id"])
 
-    # Seed the company the configured API key belongs to, and give it every existing document.
+    # Seed the configured company and give it every existing document. It gets a throwaway key
+    # hash that nothing can match; migration 0006 drops the column for the api_keys table.
     settings = get_settings()
     company_id = uuid.uuid4()
-    key_hash = hashlib.sha256(settings.api_key.get_secret_value().encode()).hexdigest()
+    key_hash = hashlib.sha256(uuid.uuid4().bytes).hexdigest()
     op.execute(
         sa.text(
             "INSERT INTO companies (id, ruc, legal_name, api_key_hash) VALUES (:id, :ruc, :n, :k)"

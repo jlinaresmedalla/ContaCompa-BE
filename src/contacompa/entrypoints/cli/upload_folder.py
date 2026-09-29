@@ -3,7 +3,8 @@
     uv run python -m contacompa.entrypoints.cli.upload_folder ../Invoices
     uv run python -m contacompa.entrypoints.cli.upload_folder ../Invoices --url http://localhost:8000
 
-The API key comes from API_KEY in the environment or `.env` (the same key the API uses)."""
+It mints a 12-hour API key for COMPANY_RUC with ADMIN_API_KEY (environment or `.env`), then
+uploads with that key. The key is never printed."""
 
 import argparse
 import sys
@@ -26,9 +27,25 @@ def main(argv: list[str] | None = None) -> int:
     if not files:
         print(f"no PDF/JPEG/PNG files in {args.folder}", file=sys.stderr)
         return 1
-    headers = {"X-API-Key": get_settings().api_key.get_secret_value()}
-    failures = 0
-    with httpx.Client(base_url=args.url, headers=headers, timeout=60) as client:
+    settings = get_settings()
+    if settings.admin_api_key is None:
+        print("ADMIN_API_KEY is not set: it is needed to mint an API key", file=sys.stderr)
+        return 1
+    with httpx.Client(base_url=args.url, timeout=60) as client:
+        try:
+            minted = client.post(
+                "/v1/api-keys",
+                headers={"X-Admin-Key": settings.admin_api_key.get_secret_value()},
+                json={"company_ruc": settings.company_ruc},
+            )
+        except httpx.HTTPError as exc:
+            print(f"could not reach {args.url}: {type(exc).__name__}", file=sys.stderr)
+            return 1
+        if minted.status_code != 201:
+            print(f"could not mint an API key: {minted.status_code}", file=sys.stderr)
+            return 1
+        client.headers["X-API-Key"] = minted.json()["api_key"]
+        failures = 0
         for path in files:
             with path.open("rb") as handle:
                 response = client.post("/v1/documents", files={"file": (path.name, handle)})

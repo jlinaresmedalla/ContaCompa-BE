@@ -12,6 +12,7 @@ from contacompa.entrypoints.api.app import create_app
 from contacompa.infrastructure.db.models import Job
 from contacompa.infrastructure.db.repos import add_daily_spend
 from tests.conftest import make_invoice_pdf
+from tests.integration.conftest import make_company
 
 pytestmark = pytest.mark.integration
 HEADERS = {"X-API-Key": "test-key"}
@@ -21,11 +22,11 @@ HEADERS = {"X-API-Key": "test-key"}
 async def client(
     pg_url: str, tmp_path: Path, sessions: async_sessionmaker[AsyncSession]
 ) -> AsyncIterator[AsyncClient]:
-    settings = Settings(
-        _env_file=None, database_url=pg_url, api_key="test-key", blob_dir=str(tmp_path / "blobs")
-    )
+    settings = Settings(_env_file=None, database_url=pg_url, blob_dir=str(tmp_path / "blobs"))
     app = create_app(settings, telemetry=False)
     async with app.router.lifespan_context(app):
+        async with sessions() as session:
+            await make_company(session)
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
             yield c
 

@@ -23,7 +23,6 @@ services:
         required: false
     environment:
       DATABASE_URL: postgresql+asyncpg://app:app@db:5432/doc_extraction
-      API_KEY: ${API_KEY:-change-me}
       BLOB_DIR: /data/blobs
     restart: "no"
     depends_on:
@@ -38,7 +37,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://app:app@db:5432/doc_extraction
       BLOB_DIR: /data/blobs
-      API_KEY: ${API_KEY:-change-me}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-change-me}
     ports: ["8000:8000"]
     volumes: [blobs:/data/blobs]
     healthcheck:
@@ -59,7 +58,6 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://app:app@db:5432/doc_extraction
       BLOB_DIR: /data/blobs
-      API_KEY: ${API_KEY:-change-me}
       WORKER_CONCURRENCY: "2"
     volumes: [blobs:/data/blobs]
     depends_on:

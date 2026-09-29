@@ -1,4 +1,3 @@
-import hashlib
 import uuid
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -8,8 +7,10 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from contacompa.domain.api_key import hash_api_key
 from contacompa.domain.purchase_doc import SourceKind
 from contacompa.infrastructure.db.models import (
+    ApiKey,
     Company,
     DailySpend,
     Document,
@@ -18,24 +19,34 @@ from contacompa.infrastructure.db.models import (
 )
 
 
-def hash_api_key(api_key: str) -> str:
-    return hashlib.sha256(api_key.encode()).hexdigest()
-
-
-async def get_company_by_api_key(session: AsyncSession, api_key: str) -> Company | None:
-    stmt = select(Company).where(Company.api_key_hash == hash_api_key(api_key))
-    return (await session.execute(stmt)).scalar_one_or_none()
-
-
-async def ensure_company(session: AsyncSession, *, ruc: str, legal_name: str, api_key: str) -> None:
-    """Create the configured company, or point it at the configured API key."""
-    stmt = insert(Company).values(
-        id=uuid.uuid4(), ruc=ruc, legal_name=legal_name, api_key_hash=hash_api_key(api_key)
+async def get_company_by_api_key(
+    session: AsyncSession, api_key: str, now: datetime
+) -> tuple[Company, datetime] | None:
+    """The company and expiry of a live key; an expired key looks like an unknown one."""
+    stmt = (
+        select(Company, ApiKey.expires_at)
+        .join(ApiKey, ApiKey.company_id == Company.id)
+        .where(ApiKey.key_hash == hash_api_key(api_key), ApiKey.expires_at > now)
     )
-    stmt = stmt.on_conflict_do_update(
-        index_elements=[Company.ruc], set_={"api_key_hash": stmt.excluded.api_key_hash}
-    )
-    await session.execute(stmt)
+    row = (await session.execute(stmt)).one_or_none()
+    return None if row is None else (row[0], row[1])
+
+
+async def get_company_by_ruc(session: AsyncSession, ruc: str) -> Company | None:
+    return (await session.execute(select(Company).where(Company.ruc == ruc))).scalar_one_or_none()
+
+
+async def create_api_key(
+    session: AsyncSession, *, company_id: UUID, key_hash: str, expires_at: datetime
+) -> None:
+    session.add(ApiKey(company_id=company_id, key_hash=key_hash, expires_at=expires_at))
+    await session.flush()
+
+
+async def ensure_company(session: AsyncSession, *, ruc: str, legal_name: str) -> None:
+    """Create the configured company if it is not there yet."""
+    stmt = insert(Company).values(id=uuid.uuid4(), ruc=ruc, legal_name=legal_name)
+    await session.execute(stmt.on_conflict_do_nothing(index_elements=[Company.ruc]))
 
 
 async def get_document_by_sha(

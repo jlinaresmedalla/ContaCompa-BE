@@ -13,6 +13,7 @@ pytestmark = pytest.mark.integration
 
 EXPECTED_TABLES = {
     "companies",
+    "api_keys",
     "suppliers",
     "purchase_docs",
     "purchase_doc_lines",
@@ -39,7 +40,6 @@ def test_upgrade_creates_tables_then_downgrade_leaves_only_alembic_version(
     pg_url: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setenv("DATABASE_URL", pg_url)
-    monkeypatch.setenv("API_KEY", "test-api-key")
     monkeypatch.setenv("BLOB_DIR", str(tmp_path))
     get_settings.cache_clear()
 

@@ -109,7 +109,6 @@ async def test_failed_enqueue_rolls_back_document_and_cleans_blob(
     settings = Settings(
         _env_file=None,
         database_url="postgresql+asyncpg://unused/unused",
-        api_key="test-key",
         blob_dir=str(tmp_path),
     )
     data = make_invoice_pdf()
@@ -141,9 +140,7 @@ async def test_failed_enqueue_rolls_back_document_and_cleans_blob(
 async def test_supplier_name_correction_isolated_conflict_and_export(
     sessions: async_sessionmaker[AsyncSession], pg_url: str, tmp_path: Path
 ) -> None:
-    settings = Settings(
-        _env_file=None, database_url=pg_url, api_key="test-key", blob_dir=str(tmp_path)
-    )
+    settings = Settings(_env_file=None, database_url=pg_url, blob_dir=str(tmp_path))
     app = create_app(settings, telemetry=False)
     async with app.router.lifespan_context(app):
         async with sessions() as session:

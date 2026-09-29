@@ -1,7 +1,6 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from importlib.metadata import PackageNotFoundError, version
-from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,14 +8,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from contacompa.config import Settings, get_settings
 from contacompa.entrypoints.api import middleware
 from contacompa.entrypoints.api.routes import (
+    api_keys,
     documents,
     exports,
     jobs,
+    me,
     monitor,
     ops,
     purchase_docs,
 )
-from contacompa.infrastructure.blob import LocalBlobStore
+from contacompa.infrastructure.blob import make_blob_store
 from contacompa.infrastructure.db.engine import make_engine, make_session_factory
 from contacompa.infrastructure.db.repos import ensure_company
 from contacompa.infrastructure.observability.llm_tracing import configure_langsmith
@@ -54,13 +55,12 @@ def create_app(settings: Settings | None = None, *, telemetry: bool = True) -> F
         app.state.settings = settings
         app.state.engine = engine
         app.state.sessions = make_session_factory(engine)
-        app.state.blobs = LocalBlobStore(Path(settings.blob_dir))
+        app.state.blobs = make_blob_store(settings)
         async with app.state.sessions() as session:
             await ensure_company(
                 session,
                 ruc=settings.company_ruc,
                 legal_name=settings.company_name,
-                api_key=settings.api_key.get_secret_value(),
             )
             await session.commit()
         try:
@@ -80,6 +80,8 @@ def create_app(settings: Settings | None = None, *, telemetry: bool = True) -> F
         expose_headers=["Content-Disposition", "X-Purchase-Doc-Count"],
     )
     app.include_router(ops.router)
+    app.include_router(api_keys.router)
+    app.include_router(me.router)
     app.include_router(documents.router)
     app.include_router(jobs.router)
     app.include_router(purchase_docs.router)
