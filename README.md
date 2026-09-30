@@ -16,6 +16,8 @@ The React dashboard lives in [Contacompa-frontend](https://github.com/jlinaresme
 
 ![Contacompa architecture](assets/architecture.png)
 
+The dashboard's Home page draws an interactive version of this diagram from a typed copy of `docs/architecture/architecture.archify.json`; a change to the diagram also updates that frontend copy (spec 005).
+
 ## Tech stack
 
 <p align="center">
